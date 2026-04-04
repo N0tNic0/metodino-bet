@@ -29,7 +29,7 @@ export function createBet(data: Omit<Bet, 'id' | 'netProfit' | 'createdAt' | 'up
   return {
     ...data,
     id: crypto.randomUUID(),
-    netProfit: calcNetProfit(data.odds, data.stake, data.status),
+    netProfit: calcNetProfit(data.odds, data.stake, data.status, data.vincita),
     createdAt: now,
     updatedAt: now,
   };
@@ -37,6 +37,6 @@ export function createBet(data: Omit<Bet, 'id' | 'netProfit' | 'createdAt' | 'up
 
 export function updateBet(existing: Bet, patch: Partial<Omit<Bet, 'id' | 'createdAt'>>): Bet {
   const updated: Bet = { ...existing, ...patch, updatedAt: new Date().toISOString() };
-  updated.netProfit = calcNetProfit(updated.odds, updated.stake, updated.status);
+  updated.netProfit = calcNetProfit(updated.odds, updated.stake, updated.status, updated.vincita);
   return updated;
 }

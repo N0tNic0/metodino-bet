@@ -25,6 +25,7 @@ const EMPTY_FORM: BetFormData = {
   odds:        '',
   stake:       '',
   status:      'pending',
+  vincita:     '',
 };
 
 const STATUS_OPTIONS = [
@@ -50,32 +51,32 @@ const CATEGORY_OPTIONS = [
 ];
 
 const BET_TYPE_OPTIONS = [
-  { value: '',                label: 'Tipo giocata (opzionale)' },
-  { value: 'Singola',         label: 'Singola' },
-  { value: 'Multipla',        label: 'Multipla (Accumulator)' },
-  { value: 'Sistema',         label: 'Sistema' },
-  { value: '1X2',             label: '1X2' },
-  { value: 'Over/Under',      label: 'Over / Under' },
-  { value: 'BTTS',            label: 'BTTS (Gol/Gol)' },
-  { value: 'Handicap',        label: 'Handicap' },
-  { value: 'Esatto risultato',label: 'Esatto risultato' },
-  { value: 'Testa a testa',   label: 'Testa a testa' },
-  { value: 'Combo',           label: 'Combo' },
-  { value: 'Altro',           label: 'Altro' },
+  { value: '',                 label: 'Tipo giocata (opzionale)' },
+  { value: 'Singola',          label: 'Singola' },
+  { value: 'Multipla',         label: 'Multipla (Accumulator)' },
+  { value: 'Sistema',          label: 'Sistema' },
+  { value: '1X2',              label: '1X2' },
+  { value: 'Over/Under',       label: 'Over / Under' },
+  { value: 'BTTS',             label: 'BTTS (Gol/Gol)' },
+  { value: 'Handicap',         label: 'Handicap' },
+  { value: 'Esatto risultato', label: 'Esatto risultato' },
+  { value: 'Testa a testa',    label: 'Testa a testa' },
+  { value: 'Combo',            label: 'Combo' },
+  { value: 'Altro',            label: 'Altro' },
 ];
 
 interface FormErrors {
   date?: string;
   odds?: string;
   stake?: string;
+  vincita?: string;
 }
 
 export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
-  const [form, setForm]       = useState<BetFormData>(EMPTY_FORM);
-  const [errors, setErrors]   = useState<FormErrors>({});
-  const [saving, setSaving]   = useState(false);
+  const [form, setForm]   = useState<BetFormData>(EMPTY_FORM);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [saving, setSaving] = useState(false);
 
-  // Populate form when editing
   useEffect(() => {
     if (open) {
       setErrors({});
@@ -88,6 +89,7 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
           odds:        String(bet.odds),
           stake:       String(bet.stake),
           status:      bet.status,
+          vincita:     bet.vincita != null ? String(bet.vincita) : '',
         });
       } else {
         setForm({ ...EMPTY_FORM, date: today() });
@@ -100,22 +102,27 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
     setErrors(prev => ({ ...prev, [key]: undefined }));
   };
 
-  // Live profit preview
-  const oddsNum  = parseFloat(form.odds);
-  const stakeNum = parseFloat(form.stake);
+  const oddsNum    = parseFloat(form.odds);
+  const stakeNum   = parseFloat(form.stake);
+  const vincitaNum = parseFloat(form.vincita);
   const validOdds  = !isNaN(oddsNum)  && oddsNum > 1;
   const validStake = !isNaN(stakeNum) && stakeNum > 0;
+  const hasVincita = form.status === 'vinta' && !isNaN(vincitaNum) && vincitaNum > 0;
+
+  // Live profit preview: uses vincita if filled, otherwise formula
   const previewProfit = validOdds && validStake
-    ? calcNetProfit(oddsNum, stakeNum, form.status)
+    ? calcNetProfit(oddsNum, stakeNum, form.status, hasVincita ? vincitaNum : undefined)
     : null;
 
   const validate = (): boolean => {
     const errs: FormErrors = {};
-    if (!form.date)                         errs.date  = 'La data è obbligatoria';
-    if (!form.odds || isNaN(oddsNum))       errs.odds  = 'Quota non valida';
-    else if (oddsNum <= 1)                  errs.odds  = 'La quota deve essere > 1.00';
-    if (!form.stake || isNaN(stakeNum))     errs.stake = 'Stake non valido';
-    else if (stakeNum <= 0)                 errs.stake = 'Lo stake deve essere > 0';
+    if (!form.date)                     errs.date  = 'La data è obbligatoria';
+    if (!form.odds || isNaN(oddsNum))   errs.odds  = 'Quota non valida';
+    else if (oddsNum <= 1)              errs.odds  = 'La quota deve essere > 1.00';
+    if (!form.stake || isNaN(stakeNum)) errs.stake = 'Stake non valido';
+    else if (stakeNum <= 0)             errs.stake = 'Lo stake deve essere > 0';
+    if (form.vincita && !isNaN(vincitaNum) && vincitaNum <= 0)
+      errs.vincita = 'La vincita deve essere > 0';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -132,6 +139,7 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
         odds:        oddsNum,
         stake:       stakeNum,
         status:      form.status as BetStatus,
+        vincita:     hasVincita ? vincitaNum : undefined,
       });
     } finally {
       setSaving(false);
@@ -144,26 +152,28 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
       onClose={onClose}
       title={bet ? 'Modifica scommessa' : 'Nuova scommessa'}
     >
-      <div className="flex flex-col gap-4 px-5 pb-6 pt-3">
-        {/* Date + Status */}
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Data"
-            type="date"
-            value={form.date}
-            onChange={e => set('date', e.target.value)}
-            error={errors.date}
-            className="[color-scheme:dark]"
-          />
-          <Select
-            label="Esito"
-            value={form.status}
-            onChange={e => set('status', e.target.value as BetStatus)}
-            options={STATUS_OPTIONS}
-          />
-        </div>
+      {/* Scrollable content — gestisce tastiera aperta su mobile */}
+      <div className="overflow-y-auto max-h-[70dvh] px-5 pb-6 pt-2 flex flex-col gap-4">
 
-        {/* Description */}
+        {/* Data — full width */}
+        <Input
+          label="Data"
+          type="date"
+          value={form.date}
+          onChange={e => set('date', e.target.value)}
+          error={errors.date}
+          className="[color-scheme:dark]"
+        />
+
+        {/* Esito — full width */}
+        <Select
+          label="Esito"
+          value={form.status}
+          onChange={e => set('status', e.target.value as BetStatus)}
+          options={STATUS_OPTIONS}
+        />
+
+        {/* Descrizione */}
         <Input
           label="Descrizione"
           type="text"
@@ -173,7 +183,7 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
           hint="Opzionale"
         />
 
-        {/* Category + Bet Type */}
+        {/* Categoria + Tipo giocata — side by side (labels corti) */}
         <div className="grid grid-cols-2 gap-3">
           <Select
             label="Categoria"
@@ -189,7 +199,7 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
           />
         </div>
 
-        {/* Odds + Stake */}
+        {/* Quota + Stake */}
         <div className="grid grid-cols-2 gap-3">
           <Input
             label="Quota"
@@ -212,6 +222,21 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
             error={errors.stake}
           />
         </div>
+
+        {/* Vincita effettiva — solo quando esito = vinta */}
+        {form.status === 'vinta' && (
+          <Input
+            label="Vincita effettiva (€)"
+            type="number"
+            placeholder={validOdds && validStake ? String((stakeNum * oddsNum).toFixed(2)) : '0.00'}
+            min="0.01"
+            step="0.50"
+            value={form.vincita}
+            onChange={e => set('vincita', e.target.value)}
+            error={errors.vincita}
+            hint="Opzionale — inserisci solo se diversa dal calcolato"
+          />
+        )}
 
         {/* Profit preview */}
         {previewProfit !== null && (

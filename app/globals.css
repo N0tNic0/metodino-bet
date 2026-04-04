@@ -22,13 +22,18 @@
 }
 
 @layer utilities {
-  /* Safe area padding for notch / home indicator (iOS) */
+  /* Safe area padding for notch / home indicator / Dynamic Island (iOS PWA) */
   .pb-safe {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
 
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Prevent content from being hidden behind bottom nav + home indicator */
+  .pb-nav {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* Hide scrollbar while keeping scroll */

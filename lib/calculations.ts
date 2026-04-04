@@ -4,14 +4,16 @@ import { Bet, BetStats, BetStatus, CumulativeProfitPoint } from '@/types';
 
 /**
  * Calculates the net profit for a single bet.
- * - vinta:   stake * (odds - 1)
+ * - vinta:   stake * (odds - 1)  — oppure (vincita - stake) se vincita è specificata
  * - persa:   -stake
  * - void:    0  (stake returned)
  * - pending: 0  (not yet resolved)
  */
-export function calcNetProfit(odds: number, stake: number, status: BetStatus): number {
+export function calcNetProfit(odds: number, stake: number, status: BetStatus, vincita?: number): number {
   switch (status) {
-    case 'vinta':   return parseFloat((stake * (odds - 1)).toFixed(2));
+    case 'vinta':
+      if (vincita !== undefined && vincita > 0) return parseFloat((vincita - stake).toFixed(2));
+      return parseFloat((stake * (odds - 1)).toFixed(2));
     case 'persa':   return -stake;
     case 'void':    return 0;
     case 'pending': return 0;

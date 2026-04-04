@@ -9,6 +9,7 @@ export interface Bet {
   odds: number;          // decimal odds, e.g. 1.85
   stake: number;         // amount wagered
   status: BetStatus;
+  vincita?: number;      // vincita lorda effettiva (opzionale — se diversa dal calcolato)
   netProfit: number;     // computed automatically
   createdAt: string;     // ISO timestamp
   updatedAt: string;     // ISO timestamp
@@ -69,4 +70,5 @@ export interface BetFormData {
   odds: string;
   stake: string;
   status: BetStatus;
+  vincita: string;
 }

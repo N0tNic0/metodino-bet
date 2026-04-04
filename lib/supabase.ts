@@ -27,6 +27,7 @@ interface BetRow {
   odds:        number;
   stake:       number;
   status:      string;
+  vincita:     number | null;
   net_profit:  number;
   created_at:  string;
   updated_at:  string;
@@ -44,6 +45,7 @@ function rowToBet(row: BetRow): Bet {
     odds:        Number(row.odds),
     stake:       Number(row.stake),
     status:      row.status as Bet['status'],
+    vincita:     row.vincita != null ? Number(row.vincita) : undefined,
     netProfit:   Number(row.net_profit),
     createdAt:   row.created_at,
     updatedAt:   row.updated_at,
@@ -60,6 +62,7 @@ function betToRow(bet: Omit<Bet, 'createdAt' | 'updatedAt'>): Omit<BetRow, 'crea
     odds:        bet.odds,
     stake:       bet.stake,
     status:      bet.status,
+    vincita:     bet.vincita ?? null,
     net_profit:  bet.netProfit,
   };
 }
