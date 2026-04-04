@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-slate-950 text-white;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Native date/number inputs — use dark color scheme */
+  input[type="date"],
+  input[type="number"],
+  input[type="time"] {
+    color-scheme: dark;
+  }
+}
+
+@layer utilities {
+  /* Safe area padding for notch / home indicator (iOS) */
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Hide scrollbar while keeping scroll */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Prevent content from being hidden behind bottom nav */
+  .pb-nav {
+    padding-bottom: calc(4rem + max(0.5rem, env(safe-area-inset-bottom)));
+  }
+}
