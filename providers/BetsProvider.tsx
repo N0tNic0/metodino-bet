@@ -61,12 +61,16 @@ export function BetsProvider({ children }: { children: ReactNode }) {
 
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async (data: Omit<Bet, 'id' | 'netProfit' | 'createdAt' | 'updatedAt'>) => {
-    if (editingBet) {
-      await betsState.editBet(editingBet.id, data);
-    } else {
-      await betsState.addBet(data);
+    try {
+      if (editingBet) {
+        await betsState.editBet(editingBet.id, data);
+      } else {
+        await betsState.addBet(data);
+      }
+      closeForm();
+    } catch {
+      // dbError è già aggiornato in useBets — non chiudere il form se c'è errore
     }
-    closeForm();
   }, [editingBet, betsState, closeForm]);
 
   return (

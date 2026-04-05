@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Bet } from '@/types';
 import { loadBets, saveBets, createBet, updateBet } from '@/lib/storage';
 import { DEMO_BETS } from '@/lib/demo-data';
@@ -12,10 +12,21 @@ import {
 export type StorageMode = 'supabase' | 'local';
 
 export function useBets() {
-  const [bets, setBets]             = useState<Bet[]>([]);
-  const [initialized, setInit]      = useState(false);
-  const [storageMode]               = useState<StorageMode>(isSupabaseConfigured ? 'supabase' : 'local');
-  const [dbError, setDbError]       = useState<string | null>(null);
+  const [bets, setBets]       = useState<Bet[]>([]);
+  const [initialized, setInit] = useState(false);
+  const [storageMode]          = useState<StorageMode>(isSupabaseConfigured ? 'supabase' : 'local');
+  const [dbError, setDbError]  = useState<string | null>(null);
+
+  // Ref sempre aggiornato — permette di leggere i bets correnti
+  // fuori dai callback di setState (evita side-effect dentro updater)
+  const betsRef = useRef<Bet[]>([]);
+  useEffect(() => { betsRef.current = bets; }, [bets]);
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const applyAndPersist = useCallback((next: Bet[]) => {
+    saveBets(next);
+    setBets(next);
+  }, []);
 
   // ── Initial load ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -23,20 +34,20 @@ export function useBets() {
       if (isSupabaseConfigured) {
         try {
           const remote = await sbLoadBets();
-          // First launch: seed demo data into Supabase
           if (remote.length === 0) {
             await sbUpsertBets(DEMO_BETS);
-            setBets(DEMO_BETS);
+            applyAndPersist(DEMO_BETS);
           } else {
-            setBets(remote);
+            applyAndPersist(remote);
           }
           setDbError(null);
         } catch (e) {
           console.error('Supabase load failed, falling back to localStorage', e);
           setDbError('Impossibile connettersi a Supabase. Dati locali in uso.');
           const local = loadBets();
-          setBets(local.length > 0 ? local : DEMO_BETS);
+          const initial = local.length > 0 ? local : DEMO_BETS;
           if (local.length === 0) saveBets(DEMO_BETS);
+          setBets(initial);
         }
       } else {
         const local = loadBets();
@@ -47,75 +58,105 @@ export function useBets() {
       setInit(true);
     }
     load();
-  }, []);
-
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-  const persist = useCallback((next: Bet[]) => {
-    saveBets(next); // always keep local cache in sync
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Add ────────────────────────────────────────────────────────────────────
-  const addBet = useCallback(async (data: Omit<Bet, 'id' | 'netProfit' | 'createdAt' | 'updatedAt'>): Promise<Bet> => {
+  const addBet = useCallback(async (
+    data: Omit<Bet, 'id' | 'netProfit' | 'createdAt' | 'updatedAt'>
+  ): Promise<Bet> => {
     const bet = createBet(data);
+
     if (isSupabaseConfigured) {
       try {
         const saved = await sbInsertBet(bet);
-        setBets(prev => { const n = [saved, ...prev]; persist(n); return n; });
+        applyAndPersist([saved, ...betsRef.current]);
+        setDbError(null);
         return saved;
       } catch (e) {
         console.error('Supabase insert failed', e);
-        setDbError('Errore di salvataggio su Supabase. Scommessa salvata localmente.');
+        setDbError('Errore salvataggio su Supabase. Riprova.');
+        // Non salvare localmente se Supabase è configurato — evita desync
+        throw e;
       }
     }
-    setBets(prev => { const n = [bet, ...prev]; persist(n); return n; });
+
+    applyAndPersist([bet, ...betsRef.current]);
     return bet;
-  }, [persist]);
+  }, [applyAndPersist]);
 
   // ── Edit ───────────────────────────────────────────────────────────────────
-  const editBet = useCallback(async (id: string, patch: Partial<Omit<Bet, 'id' | 'createdAt'>>) => {
-    setBets(prev => {
-      const next = prev.map(b => b.id === id ? updateBet(b, patch) : b);
-      persist(next);
-      // Fire-and-forget Supabase update
-      if (isSupabaseConfigured) {
-        const updated = next.find(b => b.id === id);
-        if (updated) sbUpdateBet(updated).catch(e => console.error('Supabase update failed', e));
+  const editBet = useCallback(async (
+    id: string,
+    patch: Partial<Omit<Bet, 'id' | 'createdAt'>>
+  ) => {
+    // 1. Calcola il bet aggiornato dalla ref (sempre fresco, fuori da setBets)
+    const existing = betsRef.current.find(b => b.id === id);
+    if (!existing) return;
+    const updated = updateBet(existing, patch);
+
+    // 2. Aggiorna stato locale immediatamente (ottimistico)
+    const next = betsRef.current.map(b => b.id === id ? updated : b);
+    applyAndPersist(next);
+
+    // 3. Sincronizza su Supabase (fuori dal callback di setState)
+    if (isSupabaseConfigured) {
+      try {
+        await sbUpdateBet(updated);
+        setDbError(null);
+      } catch (e) {
+        console.error('Supabase update failed', e);
+        setDbError('Errore aggiornamento su Supabase.');
+        // Rollback ottimistico
+        applyAndPersist(betsRef.current.map(b => b.id === id ? existing : b));
       }
-      return next;
-    });
-  }, [persist]);
+    }
+  }, [applyAndPersist]);
 
   // ── Delete ─────────────────────────────────────────────────────────────────
   const deleteBet = useCallback(async (id: string) => {
-    setBets(prev => {
-      const next = prev.filter(b => b.id !== id);
-      persist(next);
-      return next;
-    });
+    const prev = betsRef.current;
+    const next = prev.filter(b => b.id !== id);
+
+    // Ottimistico
+    applyAndPersist(next);
+
     if (isSupabaseConfigured) {
-      sbDeleteBet(id).catch(e => console.error('Supabase delete failed', e));
+      try {
+        await sbDeleteBet(id);
+        setDbError(null);
+      } catch (e) {
+        console.error('Supabase delete failed', e);
+        setDbError('Errore eliminazione su Supabase.');
+        // Rollback
+        applyAndPersist(prev);
+      }
     }
-  }, [persist]);
+  }, [applyAndPersist]);
 
   // ── Import ─────────────────────────────────────────────────────────────────
   const importBets = useCallback(async (incoming: Bet[]) => {
-    setBets(prev => {
-      const existingIds = new Set(prev.map(b => b.id));
-      const merged = [...prev, ...incoming.filter(b => !existingIds.has(b.id))];
-      persist(merged);
-      if (isSupabaseConfigured) {
-        sbUpsertBets(incoming).catch(e => console.error('Supabase upsert failed', e));
+    const existingIds = new Set(betsRef.current.map(b => b.id));
+    const toAdd = incoming.filter(b => !existingIds.has(b.id));
+    const merged = [...betsRef.current, ...toAdd];
+
+    applyAndPersist(merged);
+
+    if (isSupabaseConfigured && toAdd.length > 0) {
+      try {
+        await sbUpsertBets(toAdd);
+        setDbError(null);
+      } catch (e) {
+        console.error('Supabase upsert failed', e);
+        setDbError('Errore importazione su Supabase.');
       }
-      return merged;
-    });
-  }, [persist]);
+    }
+  }, [applyAndPersist]);
 
   // ── Clear ──────────────────────────────────────────────────────────────────
   const clearAll = useCallback(() => {
-    setBets([]);
-    saveBets([]);
-    // Note: does not delete from Supabase — intentional (destructive op)
-  }, []);
+    applyAndPersist([]);
+  }, [applyAndPersist]);
 
   return { bets, initialized, storageMode, dbError, addBet, editBet, deleteBet, importBets, clearAll };
 }
