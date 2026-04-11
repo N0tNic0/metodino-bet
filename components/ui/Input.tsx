@@ -21,13 +21,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full min-w-0 max-w-full rounded-xl border bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500',
-            'transition-colors focus:outline-none focus:ring-2',
+            'w-full min-w-0 max-w-full rounded-xl border bg-slate-800 py-3 text-sm text-white placeholder:text-slate-500',
+            'transition-colors focus:outline-none focus:ring-2 overflow-hidden',
             error
               ? 'border-rose-500 focus:ring-rose-500/30'
               : 'border-slate-700 focus:border-violet-500 focus:ring-violet-500/20',
             className,
           )}
+          style={props.type === 'date' ? { paddingLeft: '0.5rem', paddingRight: '0.5rem' } : { paddingLeft: '1rem', paddingRight: '1rem' }}
           {...props}
         />
         {error && <p className="text-xs text-rose-400">{error}</p>}
