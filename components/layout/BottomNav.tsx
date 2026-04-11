@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, List, Plus } from 'lucide-react';
+import { LayoutDashboard, List, Plus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBetsContext } from '@/providers/BetsProvider';
 
@@ -11,31 +11,33 @@ export default function BottomNav() {
   const { openForm } = useBetsContext();
 
   const tabs = [
-    { href: '/',     icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/bets', icon: List,            label: 'Scommesse' },
+    { href: '/',        icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/bets',    icon: List,            label: 'Scommesse' },
+    { href: '/players', icon: Users,           label: 'Giocatori' },
   ];
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 pb-safe">
-      <div className="flex items-center justify-around max-w-lg mx-auto px-2 h-16">
-        {/* Left tab */}
-        <NavTab href={tabs[0].href} icon={tabs[0].icon} label={tabs[0].label} active={pathname === tabs[0].href} />
+      <div className="flex items-center max-w-lg mx-auto px-2 h-16">
+        {/* Tabs */}
+        <div className="flex items-center flex-1">
+          {tabs.map(tab => (
+            <NavTab key={tab.href} href={tab.href} icon={tab.icon} label={tab.label} active={pathname === tab.href} />
+          ))}
+        </div>
 
-        {/* Central FAB */}
+        {/* FAB all'estrema destra */}
         <button
           onClick={() => openForm()}
           aria-label="Aggiungi scommessa"
           className={cn(
-            'flex flex-col items-center justify-center w-14 h-14 rounded-2xl',
+            'flex flex-col items-center justify-center w-14 h-14 rounded-2xl ml-2',
             'bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-900/40',
             'transition-all duration-150 active:scale-90 -mt-5',
           )}
         >
           <Plus className="w-7 h-7 text-white" strokeWidth={2.5} />
         </button>
-
-        {/* Right tab */}
-        <NavTab href={tabs[1].href} icon={tabs[1].icon} label={tabs[1].label} active={pathname === tabs[1].href} />
       </div>
     </nav>
   );

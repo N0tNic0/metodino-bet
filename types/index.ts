@@ -1,5 +1,14 @@
 export type BetStatus = 'pending' | 'vinta' | 'persa' | 'void';
 
+export interface Player {
+  id: string;
+  name: string;
+  registeredAt: string;       // YYYY-MM-DD
+  capitalInvested: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Bet {
   id: string;
   date: string;          // YYYY-MM-DD
@@ -11,6 +20,7 @@ export interface Bet {
   status: BetStatus;
   vincita?: number;      // vincita lorda effettiva (opzionale — se diversa dal calcolato)
   netProfit: number;     // computed automatically
+  playerIds: string[];   // IDs of players participating in this bet
   createdAt: string;     // ISO timestamp
   updatedAt: string;     // ISO timestamp
 }
@@ -71,4 +81,5 @@ export interface BetFormData {
   stake: string;
   status: BetStatus;
   vincita: string;
+  playerIds: string[];
 }

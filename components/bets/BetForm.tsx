@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import { calcNetProfit, formatCurrencyPlain } from '@/lib/calculations';
+import { usePlayersContext } from '@/providers/PlayersProvider';
 
 interface BetFormProps {
   open: boolean;
@@ -26,6 +27,7 @@ const EMPTY_FORM: BetFormData = {
   stake:       '',
   status:      'pending',
   vincita:     '',
+  playerIds:   [],
 };
 
 const STATUS_OPTIONS = [
@@ -73,6 +75,7 @@ interface FormErrors {
 }
 
 export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
+  const { players } = usePlayersContext();
   const [form, setForm]   = useState<BetFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
@@ -90,6 +93,7 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
           stake:       String(bet.stake),
           status:      bet.status,
           vincita:     bet.vincita != null ? String(bet.vincita) : '',
+          playerIds:   bet.playerIds ?? [],
         });
       } else {
         setForm({ ...EMPTY_FORM, date: today() });
@@ -127,6 +131,21 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
     return Object.keys(errs).length === 0;
   };
 
+  const togglePlayer = (id: string) => {
+    setForm(prev => {
+      const ids = prev.playerIds.includes(id)
+        ? prev.playerIds.filter(pid => pid !== id)
+        : [...prev.playerIds, id];
+      return { ...prev, playerIds: ids };
+    });
+  };
+
+  // Per-player stake preview
+  const numSelected = form.playerIds.length;
+  const stakePerPlayer = validStake && numSelected > 0
+    ? stakeNum / numSelected
+    : null;
+
   const handleSubmit = async () => {
     if (!validate()) return;
     setSaving(true);
@@ -140,6 +159,7 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
         stake:       stakeNum,
         status:      form.status as BetStatus,
         vincita:     hasVincita ? vincitaNum : undefined,
+        playerIds:   form.playerIds,
       });
     } finally {
       setSaving(false);
@@ -237,6 +257,47 @@ export default function BetForm({ open, bet, onClose, onSave }: BetFormProps) {
             hint="Opzionale — inserisci solo se diversa dal calcolato"
           />
         )}
+
+        {/* Partecipanti multi-select */}
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-slate-300">Partecipanti</span>
+          {players.length === 0 ? (
+            <p className="text-xs text-slate-500 bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3">
+              Nessun giocatore registrato — aggiungine uno nella sezione Giocatori
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {players.map(player => {
+                const checked = form.playerIds.includes(player.id);
+                return (
+                  <label
+                    key={player.id}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer border transition-colors ${
+                      checked
+                        ? 'bg-violet-600/15 border-violet-500/40'
+                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePlayer(player.id)}
+                      className="w-4 h-4 accent-violet-500 rounded"
+                    />
+                    <span className={`text-sm font-medium ${checked ? 'text-white' : 'text-slate-300'}`}>
+                      {player.name}
+                    </span>
+                  </label>
+                );
+              })}
+              {stakePerPlayer !== null && (
+                <p className="text-xs text-violet-400 mt-1 px-1">
+                  Quota per giocatore: {formatCurrencyPlain(stakePerPlayer)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Profit preview */}
         {previewProfit !== null && (

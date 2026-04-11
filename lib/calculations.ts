@@ -134,3 +134,26 @@ export function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-');
   return `${day}/${month}/${year}`;
 }
+
+// ─── Player calculations ───────────────────────────────────────────────────────
+
+export function calcPlayerBetShare(bet: Bet): { stakeShare: number; profitShare: number } {
+  const n = bet.playerIds.length || 1;
+  return {
+    stakeShare:  bet.stake / n,
+    profitShare: bet.netProfit / n,
+  };
+}
+
+export function calcPlayerStats(bets: Bet[], playerId: string): {
+  totalStakeShare: number;
+  totalProfit: number;
+  roi: number;
+  betCount: number;
+} {
+  const playerBets = bets.filter(b => b.playerIds.includes(playerId));
+  const totalStakeShare = playerBets.reduce((s, b) => s + calcPlayerBetShare(b).stakeShare, 0);
+  const totalProfit     = playerBets.reduce((s, b) => s + calcPlayerBetShare(b).profitShare, 0);
+  const roi = totalStakeShare > 0 ? (totalProfit / totalStakeShare) * 100 : 0;
+  return { totalStakeShare, totalProfit, roi, betCount: playerBets.length };
+}

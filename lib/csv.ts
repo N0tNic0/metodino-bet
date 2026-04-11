@@ -67,6 +67,7 @@ export function importFromCSV(file: File): Promise<{ bets: Bet[]; errors: string
               betType:     obj.bet_type || undefined,
               odds, stake, status,
               netProfit:   calcNetProfit(odds, stake, status),
+              playerIds:   [],
               createdAt:   obj.createdAt || new Date().toISOString(),
               updatedAt:   new Date().toISOString(),
             });

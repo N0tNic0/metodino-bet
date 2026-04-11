@@ -8,7 +8,7 @@ function bet(
   status: Bet['status']
 ): Bet {
   const now = new Date().toISOString();
-  return { id, date, description, category, odds, stake, status, netProfit: calcNetProfit(odds, stake, status), createdAt: now, updatedAt: now };
+  return { id, date, description, category, odds, stake, status, netProfit: calcNetProfit(odds, stake, status), playerIds: [], createdAt: now, updatedAt: now };
 }
 
 export const DEMO_BETS: Bet[] = [

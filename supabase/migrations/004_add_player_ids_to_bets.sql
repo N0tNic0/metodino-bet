@@ -1,0 +1,1 @@
+ALTER TABLE bets ADD COLUMN player_ids UUID[] NOT NULL DEFAULT '{}';
